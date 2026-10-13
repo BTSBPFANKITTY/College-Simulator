@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>College Life Simulator</title>
+    <style>
+        :root { --bg-color: #f4f7f6; --card-bg: #ffffff; --text-color: #333333; --primary-color: #4a90e2; --primary-hover: #357abd; --border-radius: 12px; }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', sans-serif; }
+        body { background-color: var(--bg-color); color: var(--text-color); display: flex; justify-content: center; align-items: center; min-height: 100vh; padding: 20px; }
+        .game-container { width: 100%; max-width: 950px; background: var(--card-bg); border-radius: var(--border-radius); box-shadow: 0 8px 24px rgba(0,0,0,0.1); overflow: hidden; display: flex; flex-direction: column; }
+        .game-header { background: var(--primary-color); color: white; padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; font-weight: bold; }
+        .pov-image-container { width: 100%; height: 400px; background-color: #000; position: relative; overflow: hidden; }
+        .pov-image { width: 100%; height: 100%; object-fit: cover; }
+        .game-layout { display: flex; flex-direction: row; border-top: 2px solid #eee; }
+        @media (max-width: 768px) { .game-layout { flex-direction: column; } .pov-image-container { height: 250px; } }
+        .main-content { flex: 2; padding: 25px; display: flex; flex-direction: column; gap: 20px; }
+        .sidebar { flex: 1; background: #fafafa; border-left: 1px solid #eee; padding: 25px; display: flex; flex-direction: column; gap: 15px; }
+        @media (max-width: 768px) { .sidebar { border-left: none; border-top: 1px solid #eee; } }
+        .story-text { font-size: 1.1rem; line-height: 1.6; min-height: 80px; }
+        .options-container { display: flex; flex-direction: column; gap: 12px; }
+        .btn { background-color: var(--primary-color); color: white; border: none; padding: 12px 20px; font-size: 1rem; border-radius: 6px; cursor: pointer; transition: background 0.2s; text-align: left; width: 100%; }
+        .btn:hover { background-color: var(--primary-hover); }
+        .input-field, .select-field { width: 100%; padding: 10px; font-size: 1rem; border: 1px solid #ccc; border-radius: 6px; margin-top: 5px; }
+        .form-group { margin-bottom: 15px; }
+        .stat-box { display: flex; justify-content: space-between; align-items: center; background: white; padding: 10px 15px; border-radius: 6px; border: 1px solid #ddd; font-size: 0.95rem; }
+        .stat-val { font-weight: bold; color: var(--primary-color); }
+    </style>
+</head>
+<body>
+<div class="game-container">
+    <div class="game-header"><span id="header-title">College Life Simulator</span><span id="scenario-counter">Setup</span></div>
+    <div class="pov-image-container"><img id="game-img" class="pov-image" src="https://unsplash.com" alt="POV"></div>
+    <div class="game-layout">
+        <div class="main-content">
+            <div id="story-box" class="story-text">Welcome to your new life! Enter your details to begin your journey.</div>
+            <div id="interactive-container" class="options-container"></div>
+        </div>
+        <div class="sidebar">
+            <h3>Student Profile</h3>
+            <div class="stat-box">Name: <span id="stat-name" class="stat-val">-</span></div>
+            <div class="stat-box">College: <span id="stat-college" class="stat-val">-</span></div>
+            <div class="stat-box">Job: <span id="stat-job" class="stat-val">-</span></div>
+            <div class="stat-box">GPA: <span id="stat-gpa" class="stat-val">4.00</span></div>
+            <div class="stat-box">Mental Health: <span id="stat-mental" class="stat-val">100%</span></div>
+            <div class="stat-box">Savings Account: <span id="stat-money" class="stat-val">$500</span></div>
+            <div class="stat-box">Social Reputation: <span id="stat-social" class="stat-val">Good</span></div>
+        </div>
+    </div>
+</div>
+<script>
+    let gameState = { name: "", college: "", job: "", money: 500, gpa: 4.0, mental: 100, socialScore: 50, currentScenarioIndex: 0, selectedScenarios: [] };
+    const images = {
+        setup: "https://unsplash.com",
+        jobSelect: "https://unsplash.com",
+        dorm: "https://unsplash.com",
+        lecture: "https://unsplash.com",
+        library: "https://unsplash.com",
+        cafe: "https://unsplash.com",
+        party: "https://unsplash.com",
+        exam: "https://unsplash.com"
+    };
+
+    const scenarioPool = [
+        { text: "Your alarm didn't go off and you have a midterm exam starting in 10 minutes.", image: images.exam, choices: [
+            { text: "Sprint out the door instantly in messy pajamas", money: 0, gpa: -0.1, mental: -15, social: -10, nextScenarioId: "exam_sprint", outcome: "You made it right on time! However, walking into a silent classroom panting in your pajamas was extremely stressful and embarrassing." },
+            { text: "Pay $25 for an emergency rideshare vehicle", money: -25, gpa: 0, mental: -5, social: 0, nextScenarioId: "exam_taxi", outcome: "The driver drove fast. You walked in calmly and safely with 2 minutes to spare, preserving your morning focus." },
+            { text: "Skip it and email a fake sickness note", money: -15, gpa: -0.3, mental: +10, social: 0, nextScenarioId: "exam_skip", outcome: "You stayed inside. Your stress levels are fine for now, but your professor seems highly skeptical of your attachment." }
+        ]},
+        { text: "Classmates invite you to an all-night diner study session, but your early work shift begins tomorrow morning.", image: images.cafe, choices: [
+            { text: "Go join them for food and study all night", money: -15, gpa: +0.4, mental: -20, social: +15, nextScenarioId: "diner_study", outcome: "Your assignment grades shot up and your popularity grew, but your brain is completely fried from sleep deprivation." },
+            { text: "Politely stay back in your dorm to sleep early", money: +50, gpa: 0, mental: +15, social: -5, nextScenarioId: "diner_sleep", outcome: "You feel refreshed, performed wonderfully at your shift, and collected your wages safely." },
+            { text: "Ditch both study group and work to play video games", money: 0, gpa: -0.2, mental: +25, social: -10, nextScenarioId: "diner_game", outcome: "Maximum relaxation! But your boss is annoyed and your missed reading homework is piling high." }
+        ]},
+        { text: "The bookstore textbook costs $200. A random senior student offers you an older version behind the gym for $40.", image: images.library, choices: [
+            { text: "Buy the official brand new bookstore version", money: -200, gpa: +0.2, mental: +10, social: 0, nextScenarioId: "book_new", outcome: "Your savings took a big hit, but you have absolute confidence that your weekly assignment pages match." },
+            { text: "Take a sketchy cash gamble on the $40 older edition", money: -40, gpa: -0.1, mental: -10, social: +5, nextScenarioId: "book_old", outcome: "You saved your cash balance! However, you later find out Chapter 4 was rewritten, throwing off your quiz accuracy." },
+            { text: "Try to sneakily find a free pirated PDF online", money: 0, gpa: 0, mental: -20, social: 0, nextScenarioId: "book_pirate", outcome: "You spent six hours navigating pop-ups and viruses. You found a text version, but your head hurts badly." }
+        ]},
+        { text: "Your roommate blasts loud heavy metal music at 2 AM directly before your big graded presentation.", image: images.dorm, choices: [
+            { text: "Confront them firmly to turn it down", money: 0, gpa: +0.1, mental: -5, social: -10, nextScenarioId: "music_confront", outcome: "They turn it down but give you the silent treatment. You managed to capture a few hours of quiet sleep." },
+            { text: "Put in earplugs and quietly try to cope", money: 0, gpa: -0.2, mental: -25, social: 0, nextScenarioId: "music_ignore", outcome: "The bass vibrated right through the floorboards. You barely rested and stumbled through your speech today." },
+            { text: "Book a last-minute local motel room for $80", money: -80, gpa: +0.2, mental: +20, social: 0, nextScenarioId: "music_hotel", outcome: "Extremely expensive, but you slept like royalty on clean sheets and completely nailed your presentation." }
+        ]},
+        { text: "The local cafe offers you a high-pay emergency cover shift right during your main professors lecture.", image: images.cafe, choices: [
+            { text: "Skip class to secure the fast cash", money: +130, gpa: -0.3, mental: -10, social: 0, nextScenarioId: "shift_skip", outcome: "You got paid very well! Unfortunately, the instructor gave an unannounced graded pop quiz worth 5%." },
+            { text: "Attend the class lecture responsibly", money: 0, gpa: +0.3, mental: +5, social: 0, nextScenarioId: "shift_attend", outcome: "You understand the core exam concepts perfectly now. Your teacher noted your front row dedication." },
+            { text: "Ask a classmate to work your shift while you study", money: -20, gpa: +0.1, mental: +10, social: +10, nextScenarioId: "shift_delegate", outcome: "You paid a small finder fee, but protected your education score and built a strong relationship." }
+        ]}
+    ];
+
+    const followUpScenarios = {
+        "exam_sprint": { text: "Because you ran in pajamas, a picture of you went viral on campus social feeds. People are laughing.", image: images.party, choices: [ text: "Own it and joke about it online", money: 0, gpa: 0, mental: +15, social: +20, outcome: "Everyone loves your humor! Your social score shot up." },
+{ text: "Hide in the library out of shame", money: 0, gpa: +0.1, mental: -20, social: -5, outcome: "You got some extra reading done, but you feel isolated." },
+{ text: "Buy a whole new wardrobe to change your style ($100)", money: -100, gpa: 0, mental: +10, social: +10, outcome: "You look incredibly sharp now, but your bank account is hurting." }
+]},
+"exam_taxi": { text: "Your rideshare driver turned out to be an executive at a local company. He likes your drive.", image: images.jobSelect, choices: [
+{ text: "Ask them for an internship lead", money: 0, gpa: +0.1, mental: +10, social: +15, outcome: "They gave you their email card! Your future career network is shining." },
+{ text: "Just thank them politely and leave", money: 0, gpa: 0, mental: +5, social: 0, outcome: "A pleasant interaction that left you in a peaceful frame of mind." },
+{ text: "Tip them an extra $20 for speeding", money: -20, gpa: 0, mental: +5, social: +5, outcome: "They leave a glowing user profile rating for you. Safe traveling!" }
+]},
+"exam_skip": { text: "The professor demands a formal verification letter for your sick note by tomorrow.", image: images.lecture, choices: [
+{ text: "Confess the truth honestly", money: 0, gpa: -0.4, mental: -20, social: -10, outcome: "The professor gives you a stern warning and dock marks. Extreme stress." },
+{ text: "Pay an online generator $40 for a graphic document", money: -40, gpa: 0, mental: -30, social: 0, outcome: "The professor bought it, but the anxiety of getting caught is destroying your nerves." },
+{ text: "Drop the entire course immediately ($50 fee)", money: -50, gpa: 0, mental: +15, social: 0, outcome: "Course removed. Your academic path is delayed, but the immense pressure is gone." }
+]},
+"diner_study": { text: "You arrived at your morning work shift completely exhausted. You dropped an expensive blender.", image: images.cafe, choices: [
+{ text: "Offer to pay $60 out of pocket for the repairs", money: -60, gpa: 0, mental: -10, social: +15, outcome: "Your boss values your immense honesty and keeps you on the shift schedules." },
+{ text: "Blame it on a faulty power outlet line", money: 0, gpa: 0, mental: -25, social: -10, outcome: "Your boss looks suspicious. The mental guilt strains your shift environment." },
+{ text: "Walk out and quit on the spot", money: 0, gpa: -0.1, mental: +10, social: -20, outcome: "Free from work! But you lost your baseline income resource." }
+]},
+"diner_sleep": { text: "Your friends are annoyed that you skipped out on the study group session.", image: images.dorm, choices: [
+{ text: "Buy them a round of coffee to apologize ($15)", money: -15, gpa: 0, mental: +5, social: +20, outcome: "Friction resolved! You are back in the core friend circle." },
+{ text: "Tell them your finances must come first", money: 0, gpa: 0, mental: +10, social: -15, outcome: "They distance themselves from you. You feel standalone but independent." },
+{ text: "Offer to host a free tutoring group in your room", money: 0, gpa: +0.2, mental: -15, social: +10, outcome: "You helped everyone study, though teaching them took up all your rest hours." }
+]},
+"diner_game": { text: "Your gaming session went late and you accidentally unlocked a streaming achievement.", image: images.party, choices: [
+{ text: "Try to monetize it and stream tomorrow", money: +40, gpa: -0.2, mental: +10, social: +15, outcome: "You made a bit of side cash, but your focus is completely slipping from class." },
+{ text: "Turn off the monitor and do emergency reading", money: 0, gpa: +0.2, mental: -20, social: 0, outcome: "You salvaged your homework grade, but your eyes are burning from screen glare." },
+{ text: "Sleep in until noon", money: 0, gpa: -0.2, mental: +30, social: -5, outcome: "Unmatched physical rest. Your GPA drops, but your health numbers are peaking." }
+]},
+"book_new": { text: "With your pristine textbook, you notice a hidden error on the professor's syllabus slide.", image: images.lecture, choices: [
+{ text: "Point it out publicly during class", money: 0, gpa: +0.2, mental: +5, social: -5, outcome: "The professor adjusts your grade up, though classmates find you a bit showy." },
+{ text: "Tell the professor quietly after class", money: 0, gpa: +0.2, mental: +10, social: +5, outcome: "An excellent professional link made. They write down your name." },
+{ text: "Keep quiet and let everyone struggle", money: 0, gpa: 0, mental: 0, social: 0, outcome: "You stay under the radar. Life moves forward normally." }
+]},
+"book_old": { text: "Because your older textbook variant was wrong, you failed a surprise reading question check.", image: images.exam, choices: [
+{ text: "Argue with the teacher about edition printing variations", money: 0, gpa: -0.1, mental: -20, social: -5, outcome: "They refuse to change it. You left the meeting feeling completely irritated." },
+{ text: "Accept it and spend $30 on library tutors", money: -30, gpa: +0.3, mental: +5, social: 0, outcome: "The tutor clears up all the book differences. Your skills return." },
+{ text: "Borrow your friend's book and take photos of pages", money: 0, gpa: +0.1, mental: -10, social: +5, outcome: "Tedious work, but you secured the right layout content for free." }
+]},
+"book_pirate": { text: "The sketchy PDF site injected a nasty malware trojan right into your laptop computer.", image: images.jobSelect, choices: [
+{ text: "Pay a professional tech service $90 to wipe it", money: -90, gpa: 0, mental: +15, social: 0, outcome: "Computer rescued safely! Your files are completely restored." },
+{ text: "Attempt to clear the code lines manually yourself", money: 0, gpa: -0.2, mental: -30, social: 0, outcome: "You made it worse. Your laptop crashes constantly, damaging homework prep." },
+{ text: "Ignore the warnings and continue using it", money: 0, gpa: -0.1, mental: -25, social: -10, outcome: "Your webcam flashes randomly. Total paranoia and drop in focus." }
+]},
+"music_confront": { text: "Your roommate demands a compromise or they will start locking you out of the microwave.", image: images.dorm, choices: [
+{ text: "Buy them custom noise-isolating foam ($25)", money: -25, gpa: 0, mental: +15, social: +15, outcome: "Perfect layout! Peace restored in the room and you are both happy." },
+{ text: "Report their conduct directly to the Resident Advisor", money: 0, gpa: 0, mental: -15, social: -25, outcome: "The RA warns them. Your room atmosphere is now toxic and hostile." },
+{ text: "Start blasting your own music back at them", money: 0, gpa: -0.2, mental: -30, social: -10, outcome: "An absolute sound war. Neither of you slept a single minute." }
+]},
+"music_ignore": { text: "You look completely exhausted during your project presentation slide display.", image: images.lecture, choices: [
+{ text: "Drink three energy shots to power through ($10)", money: -10, gpa: +0.2, mental: -15, social: 0, outcome: "You sounded lively and passed, but your heart is racing nervously now." },
+{ text: "Be honest with the class about your lack of sleep", money: 0, gpa: 0, mental: +10, social: +15, outcome: "The audience sympathizes heavily. They give you extra supportive reviews." },
+{ text: "Fail to answer basic questions and sit down", money: 0, gpa: -0.3, mental: -20, social: -10, outcome: "A poor academic display. Your final project grade drops down heavily." }
+]},
+"music_hotel": { text: "The premium motel desk clerk accidentally gives you an upgrade to a luxurious suite room.", image: images.dorm, choices: [
+{ text: "Order fancy breakfast room service ($30)", money: -30, gpa: 0, mental: +35, social: 0, outcome: "Incredible pampering! Your mental health has never been higher." },
+{ text: "Invite a classmate over to study in luxury", money: 0, gpa: +0.2, mental: +15, social: +20, outcome: "They are highly impressed by your setup. Great networking made." },
+{ text: "Check out early to return to routine work", money: 0, gpa: 0, mental: +5, social: 0, outcome: "You kept life structured and moved safely back to the campus line." }
+]},
+"shift_skip": { text: "Your cafe manager is extremely frustrated that you missed the busy rush hour shift.", image: images.jobSelect, choices: [
+{ text: "Bring them a box of premium baked treats ($15)", money: -15, gpa: 0, mental: -5, social: +15, outcome: "They soften up and forgive your absence, keeping you on staff." },
+{ text: "Accept a double shifts penalty on Saturday night", money: +180, gpa: -0.2, mental: -25, social: 0, outcome: "Great financial gain, but your weekend academic review time is ruined." },
+{ text: "Lie and say it was a sudden family situation", money: 0, gpa: 0, mental: -20, social: -10, outcome: "They buy it, but the weight of your dishonesty creates constant tension." }
+]},
+"shift_attend": { text: "Your pockets are totally empty for the weekend food market lines.", image: images.dorm, choices: [
+{ text: "Borrow $40 from an upperclassman", money: +40, gpa: 0, mental: -10, social: -5, outcome: "You have food now, but you owe financial debts to an acquaintance." },
+{ text: "Eat basic plain instant ramen all weekend", money: 0, gpa: 0, mental: -15, social: 0, outcome: "Boring and low-nutrition. Your stomach is rumbling but balance is safe." },
+{ text: "Apply for emergency campus student food grants", money: 0, gpa: 0, mental: +15, social: 0, outcome: "The university approves your card! Free high-quality campus meals secured." }
+]},
+"shift_delegate": { text: "The coworker you paid messed up the register balance sheet. Your boss is searching for answers.", image: images.cafe, choices: [
+{ text: "Pay the missing $50 difference from your account", money: -50, gpa: 0, mental: -10, social: +10, outcome: "Situation handled smoothly. Your manager drop the internal search completely." },
+{ text: "Expose your coworker's mistake immediately", money: 0, gpa: 0, mental: +5, social: -25, outcome: "Your boss clears you, but your workplace reputation is completely broken." },
+{ text: "Sit down with them to fix the data together", money: 0, gpa: +0.1, mental: -15, social: +20, outcome: "You found the math error! Both your manager and coworker respect you now." }
+]}
+};
+function initGame() {
+let finalPath = [];
+let poolCopy = [...scenarioPool];
+for(let loop = 0; loop < 15; loop++) {
+let baseElement = poolCopy[loop % poolCopy.length];
+finalPath.push({ type: "base", data: baseElement });
+finalPath.push({ type: "followup", key: baseElement.choices });
+}
+gameState.selectedScenarios = finalPath;
+renderSetup();
+}
+function renderSetup() {
+document.getElementById("interactive-container").innerHTML =  <div class="form-group"><label>Enter Name:</label><input type="text" id="input-name" class="input-field" value="Alex"></div> <div class="form-group"><label>Choose College:</label><select id="select-college" class="select-field"><option value="State University">State University</option><option value="Ivy Tech Institute">Ivy Tech Institute</option><option value="Metropolitan Arts Academy">Metropolitan Arts Academy</option></select></div> <button class="btn" onclick="saveSetup()">Continue →</button>;
+}
+function saveSetup() {
+gameState.name = document.getElementById("input-name").value || "Student";
+gameState.college = document.getElementById("select-college").value;
+if(gameState.college === "Ivy Tech Institute") { gameState.gpa = 3.8; gameState.money = 300; }
+else if(gameState.college === "Metropolitan Arts Academy") { gameState.money = 700; }
+updateUI(); renderJob();
+}
+function renderJob() {
+document.getElementById("game-img").src = images.jobSelect;
+document.getElementById("scenario-counter").innerText = "Setup: Job";
+document.getElementById("story-box").innerText = Pick a part-time job to manage your lifestyle between choices:;
+document.getElementById("interactive-container").innerHTML =  <button class="btn" onclick="saveJob('Library Assistant')">📚 Library Assistant (Low Stress)</button><br><br> <button class="btn" onclick="saveJob('Cafe Barista')">☕ Cafe Barista (Medium Pay)</button><br><br> <button class="btn" onclick="saveJob('Night Coder')">💻 Freelance Night Coder (High Pay/Stress)</button>;
+}
+function saveJob(job) { gameState.job = job; updateUI(); runScenarios(); }
+function runScenarios() {
+let index = gameState.currentScenarioIndex;
+if (index >= 30 || index >= gameState.selectedScenarios.length) { renderEnd(); return; }
+document.getElementById("scenario-counter").innerText = Scenario ${index + 1} of 30;
+let currentStep = gameState.selectedScenarios[index];
+let html = "";
+if (currentStep.type === "base") {
+let sc = currentStep.data;
+gameState.currentBaseChoices = sc.choices;
+document.getElementById("story-box").innerText = sc.text;
+document.getElementById("game-img").src = sc.image;
+sc.choices.forEach((c, i) => { html += <button class="btn" onclick="chooseBase(${i})">${c.text}</button><br><br>; });
+} else {
+let followKey = gameState.lastChoiceId || "exam_sprint";
+let sc = followUpScenarios[followKey] || followUpScenarios["exam_sprint"];
+document.getElementById("story-box").innerText = [Consequence] ${sc.text};
+document.getElementById("game-img").src = sc.image;
+sc.choices.forEach((c, i) => { html += <button class="btn" onclick="chooseFollow(${i}, '${followKey}')">${c.text}</button><br><br>; });
+}
+document.getElementById("interactive-container").innerHTML = html;
+}
+function chooseBase(i) {
+let choice = gameState.currentBaseChoices[i];
+applyStats(choice);
+gameState.lastChoiceId = choice.nextScenarioId;
+document.getElementById("story-box").innerText = choice.outcome;
+document.getElementById("interactive-container").innerHTML = <button class="btn" onclick="next()">See Immediate Consequence →</button>;
+}
+function chooseFollow(i, key) {
+let choice = followUpScenarios[key].choices[i];
+applyStats(choice);
+document.getElementById("story-box").innerText = choice.outcome;
+document.getElementById("interactive-container").innerHTML = <button class="btn" onclick="next()">Advance to Next Day →</button>;
+}
+function applyStats(c) {
+gameState.money += c.money;
+gameState.gpa = Math.min(4.0, Math.max(0.0, parseFloat((gameState.gpa + c.gpa).toFixed(2))));
+gameState.mental = Math.min(100, Math.max(0, gameState.mental + c.mental));
+gameState.socialScore = Math.min(100, Math.max(0, gameState.socialScore + c.social));
+updateUI();
+}
+function next() { gameState.currentScenarioIndex++; runScenarios(); }
+function renderEnd() {
+document.getElementById("scenario-counter").innerText = "Graduation";
+document.getElementById("game-img").src = images.setup;
+let standing = "Average Academic Mark";
+if(gameState.gpa >= 3.7) standing = "Summa Cum Laude Graduate 🌟";
+else if(gameState.gpa < 2.0) standing = "Dropped Out of College ❌";
+document.getElementById("story-box").innerText = You finished your 30-scenario college cycle at ${gameState.college}!\n\nFinal Academic Achievement: ${standing};
+document.getElementById("interactive-container").innerHTML = <button class="btn" onclick="location.reload()">Play Again 🔄</button>;
+}
+function updateUI() {
+document.getElementById("stat-name").innerText = gameState.name;
+document.getElementById("stat-college").innerText = gameState.college;
+document.getElementById("stat-job").innerText = gameState.job || "None";
+document.getElementById("stat-money").innerText = $${gameState.money};
+document.getElementById("stat-gpa").innerText = gameState.gpa.toFixed(2);
+document.getElementById("stat-mental").innerText = ${gameState.mental}%;
+let rep = "Neutral";
+if(gameState.socialScore > 70) rep = "Campus Idol 🔥";
+else if(gameState.socialScore < 30) rep = "Social Outcast 🤫";
+document.getElementById("stat-social").innerText = rep;
+}
+window.onload = initGame;
